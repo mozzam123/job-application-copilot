@@ -1,0 +1,22 @@
+{
+    "manifest_version": 3,
+    "name": "Job Application Copilot",
+    "version": "0.1.0",
+    "description": "Generate personalized job application answers using job context and your candidate profile.",
+    "permissions": [
+      "activeTab"
+    ],
+    "action": {
+      "default_popup": "popup.html"
+    },
+    "content_scripts": [
+      {
+        "matches": [
+          "https://wellfound.com/*"
+        ],
+        "js": [
+          "content.js"
+        ]
+      }
+    ]
+  }
