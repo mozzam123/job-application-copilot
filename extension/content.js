@@ -1,8 +1,25 @@
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.type === "GET_PAGE_CONTEXT") {
+
+  if (request.type === "GET_JOB_CONTEXT") {
+
+    try {
+      const extractor = new WellfoundExtractor();
+
+      const jobData = extractor.extract();
+
       sendResponse({
-        title: document.title,
-        url: window.location.href
+        success: true,
+        data: jobData
+      });
+
+    } catch (error) {
+
+      console.error("Extraction failed:", error);
+
+      sendResponse({
+        success: false,
+        error: error.message
       });
     }
-  });
+  }
+});
