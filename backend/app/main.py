@@ -1,14 +1,18 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 
+from app.candidate_profile import CANDIDATE_PROFILE
+from app.llm.ollama import OllamaProvider
 from app.models import (
     GenerateAnswerRequest,
     GenerateAnswerResponse,
 )
-
-from app.candidate_profile import CANDIDATE_PROFILE
+from app.prompt_builder import build_application_prompt
 
 
 app = FastAPI(title="Job Application Copilot API")
+
+
+llm = OllamaProvider(model="qwen3:8b")
 
 
 @app.get("/health")
@@ -16,18 +20,27 @@ def health():
     return {"status": "ok"}
 
 
-@app.post("/generate", response_model=GenerateAnswerResponse)
-def generate_answer(request: GenerateAnswerRequest):
+@app.post(
+    "/generate",
+    response_model=GenerateAnswerResponse,
+)
+def generate_answer(
+    request: GenerateAnswerRequest,
+):
 
-    print("\n--- APPLICATION QUESTION ---")
-    print(request.question)
-
-    print("\n--- JOB CONTEXT ---")
-    print(request.job.model_dump())
-
-    print("\n--- CANDIDATE PROFILE ---")
-    print(CANDIDATE_PROFILE)
-
-    return GenerateAnswerResponse(
-        answer="Backend received the job context successfully."
+    prompt = build_application_prompt(
+        question=request.question,
+        job=request.job,
+        candidate_profile=CANDIDATE_PROFILE,
     )
+
+    try:
+        answer = llm.generate(prompt)
+
+    except Exception as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"LLM generation failed: {exc}",
+        )
+
+    return GenerateAnswerResponse(answer=answer)

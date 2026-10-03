@@ -1,47 +1,131 @@
-const extractBtn = document.getElementById("extractBtn");
-const result = document.getElementById("result");
+const generateBtn = document.getElementById("generateBtn");
+const copyBtn = document.getElementById("copyBtn");
 
-extractBtn.addEventListener("click", async () => {
+const questionInput = document.getElementById("question");
 
-  const [tab] = await chrome.tabs.query({
-    active: true,
-    currentWindow: true
-  });
+const status = document.getElementById("status");
+const answer = document.getElementById("answer");
+const answerContainer = document.getElementById("answerContainer");
+
+
+generateBtn.addEventListener("click", async () => {
+
+  const question = questionInput.value.trim();
+
+  if (!question) {
+    status.textContent = "Please enter an application question.";
+    return;
+  }
+
+
+  generateBtn.disabled = true;
+
+  status.textContent = "Generating answer...";
+
+  answer.textContent = "";
+  answerContainer.style.display = "none";
+  copyBtn.style.display = "none";
+
 
   try {
 
-    const response = await chrome.tabs.sendMessage(tab.id, {
-      type: "GET_JOB_CONTEXT"
+    const [tab] = await chrome.tabs.query({
+      active: true,
+      currentWindow: true
     });
 
-    if (!response.success) {
-      throw new Error(response.error);
+
+    const extractionResponse = await chrome.tabs.sendMessage(
+      tab.id,
+      {
+        type: "GET_JOB_CONTEXT"
+      }
+    );
+
+
+    if (!extractionResponse.success) {
+      throw new Error(
+        extractionResponse.error || "Could not read this job."
+      );
     }
 
-    const job = response.data;
 
-    result.textContent = `
-Company:
-${job.company_name || "Not found"}
+    const response = await fetch(
+      "http://127.0.0.1:8000/generate",
+      {
+        method: "POST",
 
-Job Title:
-${job.job_title || "Not found"}
+        headers: {
+          "Content-Type": "application/json"
+        },
 
-Company Description:
-${job.company_description || "Not found"}
+        body: JSON.stringify({
+          question: question,
+          job: extractionResponse.data
+        })
+      }
+    );
 
-Job Description:
-${job.job_description || "Not found"}
 
-Requirements:
-${job.requirements || "Not found"}
-    `.trim();
+    if (!response.ok) {
+
+      const errorData = await response.json();
+
+      throw new Error(
+        errorData.detail || "Could not generate answer."
+      );
+    }
+
+
+    const data = await response.json();
+
+
+    answer.textContent = data.answer;
+
+    answerContainer.style.display = "block";
+    copyBtn.style.display = "block";
+
+    status.textContent = "";
+
 
   } catch (error) {
 
     console.error(error);
 
-    result.textContent =
-      "Could not extract job information from this page.";
+    status.textContent = `Error: ${error.message}`;
+
+  } finally {
+
+    generateBtn.disabled = false;
+  }
+});
+
+
+copyBtn.addEventListener("click", async () => {
+
+  const text = answer.textContent.trim();
+
+  if (!text) {
+    return;
+  }
+
+
+  try {
+
+    await navigator.clipboard.writeText(text);
+
+    copyBtn.textContent = "Copied!";
+
+
+    setTimeout(() => {
+      copyBtn.textContent = "Copy Answer";
+    }, 1500);
+
+
+  } catch (error) {
+
+    console.error(error);
+
+    status.textContent = "Could not copy the answer.";
   }
 });
