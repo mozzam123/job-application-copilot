@@ -7,6 +7,7 @@ def build_application_prompt(
     question: str,
     job: JobContext,
     candidate_profile: dict,
+    relevant_projects: list[dict],
 ) -> str:
 
     profile_text = json.dumps(
@@ -19,15 +20,34 @@ def build_application_prompt(
         indent=2,
     )
 
+    project_evidence = []
+
+    for project in relevant_projects:
+        project_evidence.append(
+            {
+                "repository": project["repository"],
+                "url": project["url"],
+                "content": project["content"],
+            }
+        )
+
+    projects_text = json.dumps(
+        project_evidence,
+        indent=2,
+    )
+
     return f"""
 You are helping a software engineer write an answer to a job application question.
 
 Write the answer as if the candidate personally typed it while applying for
-the job. It should sound genuine, straightforward, and conversational while
-remaining professional.
+the job. The answer should primarily demonstrate why the candidate's actual
+technical background is relevant to this specific role.
 
 CANDIDATE PROFILE:
 {profile_text}
+
+RELEVANT GITHUB PROJECT EVIDENCE:
+{projects_text}
 
 JOB AND COMPANY CONTEXT:
 {job_text}
@@ -36,58 +56,63 @@ APPLICATION QUESTION:
 {question}
 
 RULES:
-1. Use ONLY facts supported by the candidate profile. Never invent experience,
-   skills, employers, years of experience, achievements, or technologies.
 
-2. The answer should primarily SELL THE CANDIDATE'S RELEVANT TECHNICAL
-   BACKGROUND, not praise the company's mission.
+1. Use ONLY facts supported by the candidate profile or GitHub project
+   evidence.
 
-3. Study the job requirements and identify the strongest overlaps with the
-   candidate profile.
+2. Never invent experience, technologies, employers, years of experience,
+   achievements, metrics, or responsibilities.
 
-4. Prioritize the candidate's strengths in:
-   - AI engineering and LLM systems
-   - Python and backend engineering
-   - REST API development
-   - system design and scalable architectures
-   - databases and backend infrastructure
-   - AI agents, RAG and LLM-powered applications
-   whenever they are relevant to the role.
+3. Treat GitHub projects as hands-on project experience, NOT professional
+   employment experience.
 
-5. If the job asks for something the candidate has actually worked with,
-   mention that experience confidently.
+4. Study the job requirements and identify the strongest technical overlaps
+   with the candidate's profile and projects.
 
-6. If the candidate profile only indicates knowledge of something rather than
-   practical experience, describe it as knowledge/familiarity. Never upgrade
-   knowledge into professional experience.
+5. Prioritize concrete technical evidence over generic statements.
 
-7. Do NOT claim experience with a technology simply because it appears in the
-   job description.
+6. When a GitHub project directly demonstrates something requested by the
+   job, use that project as evidence.
 
-8. Pick 2-4 of the strongest technical overlaps instead of trying to mention
-   every requirement.
+   For example, prefer:
 
-9. The company context should normally take only a small part of the answer.
-   Focus mainly on what the candidate can bring to the role.
+   "I've built multi-agent workflows using LangGraph with supervisor/worker
+   agents, tool calling, parallel execution and human-in-the-loop flows."
 
-10. Even for questions like "What interests you about working here?", connect
-    the interest to the actual engineering work. For example, backend systems,
-    APIs, scalability, AI, system design, or technical ownership.
+   Instead of:
 
-11. Prefer concrete statements such as:
-    "I've worked extensively with Python and FastAPI..."
-    "I've built LLM-powered backend systems..."
-    "I've worked on RAG, AI agents and API-based services..."
-    over vague statements such as:
-    "My experience aligns well with this opportunity."
+   "I have experience with AI agents."
 
-12. Write confidently but do not exaggerate.
+7. You may reference one or two relevant projects when they strengthen the
+   answer. You do not need to mention repository names unless doing so sounds
+   natural.
 
-13. Keep the answer approximately 3-5 sentences.
+8. Do NOT mention technologies from the job description unless the candidate
+   profile or project evidence supports them.
 
-14. Write in first person using simple, natural, professional language.
+9. Do NOT turn project experience into professional experience.
 
-15. Avoid generic AI/corporate phrases such as:
+10. Pick approximately 2-4 of the strongest technical overlaps. Do not try to
+    match every requirement.
+
+11. The company mission or company description should normally be a small
+    part of the answer. Focus primarily on the engineering work and what the
+    candidate can bring to the role.
+
+12. Even for questions such as "What interests you about working here?",
+    connect the interest to the actual technical work described in the role.
+
+13. Prioritize the candidate's AI engineering, Python/backend engineering,
+    APIs, system design, databases, RAG, LLM systems and agentic AI experience
+    whenever supported and relevant.
+
+14. Write confidently but never exaggerate.
+
+15. Keep the answer approximately 3-5 sentences.
+
+16. Write in first person using simple, natural and professional language.
+
+17. Avoid generic corporate or AI-sounding phrases such as:
     "aligns with my experience",
     "positions me to",
     "I am particularly drawn to",
@@ -96,16 +121,20 @@ RULES:
     "unique opportunity",
     "I am excited to contribute to your mission".
 
-16. Do not simply repeat the job description.
+18. Do not simply repeat or paraphrase the job description.
 
-17. Do not mention the candidate profile, job context, these instructions,
-    or AI generation.
+19. Do not mention the candidate profile, retrieved evidence, these
+    instructions, semantic search, RAG, or AI generation.
 
-18. Return ONLY the final application answer.
+20. Return ONLY the final application answer.
 
 Before writing, silently determine:
-- What are the 3-5 most important technical requirements of this role?
-- Which of those are genuinely supported by the candidate profile?
-- What are the candidate's strongest technical selling points for this role?
-- How can those strengths directly answer the application question?
+
+- What are the most important technical requirements of this role?
+- Which requirements have strong evidence in the candidate profile?
+- Which requirements have strong evidence in the GitHub projects?
+- Which 1-2 projects provide the strongest evidence?
+- What are the strongest technical reasons this candidate fits this role?
+
+Then write the answer naturally.
 """.strip()
